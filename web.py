@@ -31,21 +31,24 @@ def index():
     link += "<a href=/account>POST傳值(帳號密碼)</a><hr>"
     link += "<a href=/math>數學運算</a><hr>"
     link += "<a href=/cup>擲茭</a><hr>"
+    link += "<a href=/read4>老師查詢</a><hr>"
     link += "<br><a href=/read>讀取Firestore資料(根據lab遞減排序,取前4)</a><br>"
     return link
 
 
 @app.route("/read")
 def read():
-    Temp = ""
     db = firestore.client()
-
+    
+    Temp = ""
     collection_ref = db.collection("靜宜資管2026a")
-    #docs = collection_ref.where(filter=FieldFilter("mail","==", "tcyang@pu.edu.tw")).get()
-    docs = collection_ref.order_by("lab", direction=firestore.Query.DESCENDING).limit(4).get()
+    docs = collection_ref.order_by("lab").limit(3).get()
     for doc in docs:
         Temp += str(doc.to_dict()) + "<br>"
-    return Temp
+
+
+    return "<h1>資訊管理導論</h1><a href=/>回到網站首頁</a>"
+
 
 
 @app.route("/read4", methods=["GET", "POST"])
@@ -84,6 +87,7 @@ def read4():
         <br><a href="/">回首頁</a>
         """
         return html
+
 
 @app.route("/mis")
 def course():
