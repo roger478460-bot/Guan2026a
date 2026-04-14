@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>王冠元的數學運算器</title>
+</head>
+<body>
+    <h1>進階數學運算</h1>
+    <form action="/math" method="post">
+        <input type="number" step="any" name="x" placeholder="輸入數字 x" required>
+        
+        <select name="opt">
+            <option value="+">+</option>
+            <option value="-">-</option>
+            <option value="*">*</option>
+            <option value="/">/</option>
+        </select>
+        
+        <input type="number" step="any" name="y" placeholder="輸入數字 y" required>
+        
+        <button type="submit">計算</button>
+    </form>
+    <br>
+    <hr>
+    <a href="/">回到首頁</a>
+</body>
+</html>
