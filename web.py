@@ -35,19 +35,42 @@ def index():
     return link
 
 
-@app.route("/read")
-def read():
-    db = firestore.client()
-    
-    Temp = ""
-    collection_ref = db.collection("靜宜資管2026a")
-    docs = collection_ref.order_by("lab").limit(3).get()
-    for doc in docs:
-        Temp += str(doc.to_dict()) + "<br>"
-
-
-    return "<h1>資訊管理導論</h1><a href=/>回到網站首頁</a>"
-
+@app.route("/read4", methods=["GET", "POST"])
+def read4():
+    if request.method == "POST":
+        keyword = request.form.get("keyword")
+        db = firestore.client()
+        collection_ref = db.collection("靜宜資管2026a")
+        docs = collection_ref.get()
+       
+        result = f"<h1>查詢結果</h1>"
+        result += f"<p>您查詢的關鍵字是：{keyword}</p><hr>"
+       
+        found = False
+        for doc in docs:
+            user = doc.to_dict()
+            # 實作圖片中的邏輯：判斷關鍵字是否在老師姓名中
+            if keyword in user.get("name", ""):
+                found = True
+                result += f"● {user['name']} 老師的研究室在 {user.get('lab', '未知')}<br>"
+       
+        if not found:
+            result += "抱歉，找不到符合條件的老師。"
+           
+        result += "<br><br><a href='/read4'>重新查詢</a> | <a href='/'>回首頁</a>"
+        return result
+    else:
+        # 顯示查詢介面
+        html = """
+        <h1>查詢老師研究室</h1>
+        <form method="POST">
+            <label>請輸入老師姓名關鍵字：</label>
+            <input type="text" name="keyword">
+            <button type="submit">查詢</button>
+        </form>
+        <br><a href="/">回首頁</a>
+        """
+        return html
 
 @app.route("/mis")
 def course():
