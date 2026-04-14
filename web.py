@@ -35,6 +35,19 @@ def index():
     return link
 
 
+@app.route("/read")
+def read():
+    Temp = ""
+    db = firestore.client()
+
+    collection_ref = db.collection("靜宜資管2026a")
+    #docs = collection_ref.where(filter=FieldFilter("mail","==", "tcyang@pu.edu.tw")).get()
+    docs = collection_ref.order_by("lab", direction=firestore.Query.DESCENDING).limit(4).get()
+    for doc in docs:
+        Temp += str(doc.to_dict()) + "<br>"
+    return Temp
+
+
 @app.route("/read4", methods=["GET", "POST"])
 def read4():
     if request.method == "POST":
