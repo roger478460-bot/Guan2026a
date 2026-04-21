@@ -1,3 +1,6 @@
+import requests
+from bs4 import BeautifulSoup
+
 import os
 import json
 import firebase_admin
@@ -21,6 +24,10 @@ from datetime import datetime
 import random
 app = Flask(__name__)
 
+# 在 web.py 的開頭導入必要的套件 (如果還沒導入)
+import requests
+from bs4 import BeautifulSoup
+
 @app.route("/")
 def index():
     link =  "<h1>歡迎進入王冠元的網站首頁</h1>"
@@ -32,6 +39,8 @@ def index():
     link += "<a href=/math>數學運算</a><hr>"
     link += "<a href=/cup>擲茭</a><hr>"
     link += "<a href=/read4>老師查詢</a><hr>"
+    link += "<a href=/sp1>爬蟲課程</a><hr>"
+    link += "<a href=/movie>即將上映的電影</a><hr>"
     link += "<br><a href=/read>讀取Firestore資料(根據lab遞減排序,取前4)</a><br>"
     return link
 
@@ -42,7 +51,7 @@ def read():
     
     Temp = ""
     collection_ref = db.collection("靜宜資管2026a")
-    docs = collection_ref.order_by("lab").limit(3).get()
+    docs = collection_ref.order_by("lab", direction=firestore.Query.DESCENDING).limit(4).get()
     for doc in docs:
         Temp += str(doc.to_dict()) + "<br>"
 
@@ -102,6 +111,46 @@ def today():
     day = str(now.day)
     now = year + "/" + month + "/" + day
     return render_template("today.html", datetime = str(now))
+
+@app.route("/sp1")
+def sp1():
+    R = ""
+    url = "https://guan2026a.vercel.app/about"
+    Data = requests.get(url)
+    Data.encoding = "utf-8"
+    #print(Data.text)
+    sp = BeautifulSoup(Data.text, "html.parser")
+    result=sp.select("td a")
+
+    for item in result:
+        R += item.text + "<br>" + item.get("href") + "<br><br>"
+    return R
+
+# 在 web.py 中新增這個路由
+@app.route("/movie")
+def movie():
+    url = "http://www.atmovies.com.tw/movie/next/"
+    Data = requests.get(url)
+    Data.encoding = "utf-8"
+    sp = BeautifulSoup(Data.text, "html.parser")
+    result = sp.select(".filmListAllX li")
+    
+    # 準備一個字串來存放結果
+    movies_html = "<h1>即將上映電影</h1>"
+    
+    for item in result:
+        # 加上防呆機制，避免爬蟲找不到標籤時崩潰
+        img_tag = item.find("img")
+        a_tag = item.find("a")
+        
+        if img_tag and a_tag:
+            title = img_tag.get("alt")
+            link = "https://www.atmovies.com.tw" + a_tag.get("href")
+            movies_html += f"<div><a href='{link}' target='_blank'>{title}</a></div>"
+    
+    movies_html += "<br><br><a href='/'>回首頁</a>"
+    return movies_html
+
 
 @app.route("/about")
 def about():
