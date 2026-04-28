@@ -5,7 +5,7 @@ import os
 import json
 import firebase_admin
 from firebase_admin import credentials, firestore
-from google.cloud.firestore_v1.base_query import FieldFilter
+#from google.cloud.firestore_v1.base_query import FieldFilter
 
 # 判斷是在 Vercel 還是本地
 if os.path.exists('serviceAccountKey.json'):
@@ -24,9 +24,6 @@ from datetime import datetime
 import random
 app = Flask(__name__)
 
-# 在 web.py 的開頭導入必要的套件 (如果還沒導入)
-import requests
-from bs4 import BeautifulSoup
 
 @app.route("/")
 def index():
@@ -42,6 +39,8 @@ def index():
     link += "<a href=/sp1>爬蟲課程</a><hr>"
     link += "<a href=/movie>即將上映的電影</a><hr>"
     link += "<br><a href=/read>讀取Firestore資料(根據lab遞減排序,取前4)</a><br>"
+    link += "<br><a href=/movie2>讀取開眼電影即將上映影片，寫入Firestore</a><br>"
+    link += "<br><a href=/movie3>查詢電影</a><br>"
     return link
 
 
@@ -58,6 +57,77 @@ def read():
 
     return "<h1>資訊管理導論</h1><a href=/>回到網站首頁</a>"
 
+@app.route("/movie2")
+def movie2():
+  url = "http://www.atmovies.com.tw/movie/next/"
+  Data = requests.get(url)
+  Data.encoding = "utf-8"
+  sp = BeautifulSoup(Data.text, "html.parser")
+  result=sp.select(".filmListAllX li")
+  lastUpdate = sp.find("div", class_="smaller09").text[5:]
+
+  for item in result:
+    picture = item.find("img").get("src").replace(" ", "")
+    title = item.find("div", class_="filmtitle").text
+    movie_id = item.find("div", class_="filmtitle").find("a").get("href").replace("/", "").replace("movie", "")
+    hyperlink = "http://www.atmovies.com.tw" + item.find("div", class_="filmtitle").find("a").get("href")
+    show = item.find("div", class_="runtime").text.replace("上映日期：", "")
+    show = show.replace("片長：", "")
+    show = show.replace("分", "")
+    showDate = show[0:10]
+    showLength = show[13:]
+
+    doc = {
+        "title": title,
+        "picture": picture,
+        "hyperlink": hyperlink,
+        "showDate": showDate,
+        "showLength": showLength,
+        "lastUpdate": lastUpdate
+      }
+
+    db = firestore.client()
+    doc_ref = db.collection("電影").document(movie_id)
+    doc_ref.set(doc)    
+  return "近期上映電影已爬蟲及存檔完畢，網站最近更新日期為：" + lastUpdate 
+
+
+@app.route("/movie3", methods=["GET", "POST"])
+def movie3():
+    result = "<h1>電影關鍵字查詢</h1>"
+    # 顯示查詢表單
+    result += """
+    <form method="POST">
+        <input type="text" name="keyword" placeholder="請輸入電影名稱關鍵字">
+        <button type="submit">查詢</button>
+    </form>
+    <hr>
+    """
+    
+    if request.method == "POST":
+        keyword = request.form.get("keyword")
+        db = firestore.client()
+        # 取得所有電影資料
+        docs = db.collection("電影").get()
+        
+        found = False
+        result += f"<h2>查詢結果：{keyword}</h2>"
+        for doc in docs:
+            movie = doc.to_dict()
+            # 判斷輸入的關鍵字是否在電影標題中
+            if keyword in movie.get("title", ""):
+                found = True
+                result += f"""
+                <div style='margin-bottom:10px;'>
+                    <a href='{movie.get('hyperlink')}' target='_blank'>{movie.get('title')}</a><br>
+                    上映日期: {movie.get('showDate')}
+                </div>
+                """
+        if not found:
+            result += "抱歉，找不到相關電影。"
+            
+    result += "<br><a href='/'>回首頁</a>"
+    return result
 
 
 @app.route("/read4", methods=["GET", "POST"])
@@ -126,109 +196,9 @@ def sp1():
         R += item.text + "<br>" + item.get("href") + "<br><br>"
     return R
 
-# 在 web.py 中新增這個路由
-@app.route("/movie")
-def movie():
-    url = "http://www.atmovies.com.tw/movie/next/"
-    Data = requests.get(url)
-    Data.encoding = "utf-8"
-    sp = BeautifulSoup(Data.text, "html.parser")
-    result = sp.select(".filmListAllX li")
-    
-    # 準備一個字串來存放結果
-    movies_html = "<h1>即將上映電影</h1>"
-    
-    for item in result:
-        # 加上防呆機制，避免爬蟲找不到標籤時崩潰
-        img_tag = item.find("img")
-        a_tag = item.find("a")
-        
-        if img_tag and a_tag:
-            title = img_tag.get("alt")
-            link = "https://www.atmovies.com.tw" + a_tag.get("href")
-            movies_html += f"<div><a href='{link}' target='_blank'>{title}</a></div>"
-    
-    movies_html += "<br><br><a href='/'>回首頁</a>"
-    return movies_html
+# 在 web.py 中新增這個路由import requests
+from bs4 import BeautifulSoup
 
-
-@app.route("/about")
-def about():
-    return render_template("about.html")
-
-@app.route("/welcome", methods=["GET"])
-def welcome():
-    x = request.values.get("u")
-    y = request.values.get("dep")
-    return render_template("welcome.html", name = x, dep = y)
-
-@app.route("/account", methods=["GET", "POST"])
-def account():
-    if request.method == "POST":
-        user = request.form["user"]
-        pwd = request.form["pwd"]
-        result = "您輸入的帳號是:" + user + "; 密碼為:" + pwd
-        return result
-    else:
-        return render_template("account.html")
-
-@app.route("/math", methods=["GET", "POST"])
-def math():
-    if request.method == "POST":
-        try:
-            # 從表單取得資料並轉型
-            x = float(request.form["x"])
-            y = float(request.form["y"])
-            opt = request.form["opt"]
-            result = None
-
-            # 你的邏輯處理
-            if opt == "/" and y == 0:
-                res_text = "錯誤：除數不能為 0"
-            else:
-                match opt:
-                    case "+": result = x + y
-                    case "-": result = x - y
-                    case "*": result = x * y
-                    case "/": result = x / y
-                    case _: res_text = "輸入的運算符號不正確"
-                
-                if result is not None:
-                    res_text = f"{x} {opt} {y} 的結果是 {result}"
-            
-            return f"<h1>計算結果</h1><p>{res_text}</p><a href='/math'>重新計算</a> | <a href='/'>回首頁</a>"
-
-        except ValueError:
-            return "<h1>輸入錯誤</h1><p>請確保你輸入的是數字</p><a href='/math'>返回</a>"
-    else:
-        return render_template("math.html")
-@app.route('/cup', methods=["GET"])
-def cup():
-    # 檢查網址是否有 ?action=toss
-    #action = request.args.get('action')
-    action = request.values.get("action")
-    result = None
-    
-    if action == 'toss':
-        # 0 代表陽面，1 代表陰面
-        x1 = random.randint(0, 1)
-        x2 = random.randint(0, 1)
-        
-        # 判斷結果文字
-        if x1 != x2:
-            msg = "聖筊：表示神明允許、同意，或行事會順利。"
-        elif x1 == 0:
-            msg = "笑筊：表示神明一笑、不解，或者考慮中，行事狀況不明。"
-        else:
-            msg = "陰筊：表示神明否定、憤怒，或者不宜行事。"
-            
-        result = {
-            "cup1": "/static/" + str(x1) + ".jpg",
-            "cup2": "/static/" + str(x2) + ".jpg",
-            "message": msg
-        }
-        
-    return render_template('cup.html', result=result)
 
 
 if __name__ == "__main__":
