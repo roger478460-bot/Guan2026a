@@ -39,23 +39,32 @@ def index():
     link += "<a href=/sp1>爬蟲課程</a><hr>"
     link += "<a href=/movie>即將上映的電影</a><hr>"
     link += "<br><a href=/read>讀取Firestore資料(根據lab遞減排序,取前4)</a><br>"
-    link += "<br><a href=/movie2>讀取開眼電影即將上映影片，寫入Firestore</a><br>"
+    link += "<br><a href=/movie2>讀取近期上映的電影，寫入Firestore</a><br>"
     link += "<br><a href=/movie3>查詢電影</a><br>"
+    link += "<br><a href=/road>路口事故統計</a><br>"
+    link += "<a href=/weather?city=臺中市>天氣預報</a><hr>"
     return link
 
 
 @app.route("/read")
 def read():
     db = firestore.client()
-    
-    Temp = ""
     collection_ref = db.collection("靜宜資管2026a")
+    
+    # 執行抓取
     docs = collection_ref.order_by("lab", direction=firestore.Query.DESCENDING).limit(4).get()
-    for doc in docs:
-        Temp += str(doc.to_dict()) + "<br>"
+    
+    data_list = list(docs) # 將結果轉成清單
+    count = len(data_list) # 計算抓到幾筆
+    
+    Temp = f"<h1>資訊管理導論</h1>"
+    Temp += f"<p>系統偵測：目前抓到 {count} 筆資料</p><hr>"
+    
+    for doc in data_list:
+        Temp += f"資料內容：{str(doc.to_dict())}<br><br>"
 
-
-    return "<h1>資訊管理導論</h1><a href=/>回到網站首頁</a>"
+    Temp += "<a href=/>回到網站首頁</a>"
+    return Temp
 
 @app.route("/movie2")
 def movie2():
@@ -129,6 +138,57 @@ def movie3():
     result += "<br><a href='/'>回首頁</a>"
     return result
 
+@app.route("/weather", methods=["GET", "POST"])
+def weather():
+    # 預設城市
+    city = "臺中市"
+    
+    # 如果使用者是透過按下「查詢」按鈕（POST）進來的
+    if request.method == "POST":
+        city = request.form.get("city")
+    # 如果使用者是點擊連結（GET）進來的
+    else:
+        city = request.args.get("city") or "臺中市"
+
+    # 處理「台」與「臺」並抓取資料
+    city = city.replace("台", "臺")
+    url = f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=rdec-key-123-45678-011121314&format=JSON&locationName={city}"
+    
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    Data = requests.get(url, verify=False)
+    
+    # 建立頁面內容
+    R = "<h1>三十六小時天氣預報</h1>"
+    
+    # 加入「輸入表單」
+    R += f"""
+    <form method="POST" action="/weather">
+        <label>請輸入欲查詢的縣市：</label>
+        <input type="text" name="city" placeholder="例如：臺北市" value="{city}">
+        <button type="submit">查詢</button>
+    </form>
+    <hr>
+    """
+    
+    try:
+        json_data = json.loads(Data.text)
+        records = json_data["records"]["location"][0]
+        # Wx (天氣現象)
+        weather_state = records["weatherElement"][0]["time"][0]["parameter"]["parameterName"]
+        # PoP (降雨機率)
+        rain_chance = records["weatherElement"][1]["time"][0]["parameter"]["parameterName"]
+        
+        R += f"<h3>{city} 目前天氣預報：</h3>"
+        R += f"天氣狀況：{weather_state}<br>"
+        R += f"降雨機率：{rain_chance} %<br>"
+    except:
+        R += f"<h3>暫時無法取得「{city}」的天氣資訊</h3>"
+        R += "請確保輸入完整的縣市名稱（如：臺南市）。"
+
+    R += "<br><br><a href=/>回到網站首頁</a>"
+    return R
+
 
 @app.route("/read4", methods=["GET", "POST"])
 def read4():
@@ -172,6 +232,33 @@ def read4():
 def course():
     return "<h1>資訊管理導論</h1><a href=/>回到網站首頁</a>"
 
+@app.route("/road")
+def road():
+    url = "https://newdatacenter.taichung.gov.tw/api/v1/no-auth/resource.download?rid=a1b899c0-511f-4e3d-b22b-814982a97e41"
+    
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    
+    Data = requests.get(url, verify=False)
+    Data.encoding = "utf-8"
+    JsonData = json.loads(Data.text)
+
+    # 1. 進行排序：根據「總件數」從大到小排序
+    # 因為原始資料的總件數可能是字串，所以要用 int() 轉換後再比較
+    SortedData = sorted(JsonData, key=lambda x: int(x["總件數"]), reverse=True)
+
+    # 2. 取前 10 筆
+    Top10 = SortedData[:10]
+
+    R = "<h1>台中市十大肇事路口統計</h1>"
+    R += "<ol>"  # 使用有序列表標籤，會自動顯示 1. 2. 3...
+    
+    for item in Top10:
+        R += f"<li><b>{item['路口名稱']}</b>：總共發生 {item['總件數']} 件事故</li>"
+    
+    R += "</ol>"
+    R += "<br><a href=/>回到網站首頁</a>"
+    return R
 
 @app.route("/today")
 def today():
