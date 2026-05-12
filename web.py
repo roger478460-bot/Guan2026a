@@ -273,17 +273,53 @@ def today():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    # build a request object
+    # 1. 取得 Dialogflow 傳來的 JSON 資料
     req = request.get_json(force=True)
-    # fetch queryResult from json
-    action =  req["queryResult"]["action"]
-    #msg =  req["queryResult"]["queryText"]
-    #info = "我是王冠元設計的電影聊天機器人,動作：" + action + "； 查詢內容：" + msg
-    if (action == "rateChoice"):
-        rate =  req["queryResult"]["parameters"]["rate"]
-        info = "我是王冠元設計的電影聊天機器人，您選擇的電影分級是：" + rate
+    
+    # 2. 取得 Intent 的 Action 名稱 (確保與 Dialogflow 設定一致)
+    action = req["queryResult"]["action"]
+    
+    if action == "rateChoice":
+        # 3. 取得 Dialogflow 解析出的參數 (電影分級)
+        # 注意：如果 Dialogflow 傳來的是 "G", "P", "F2" 等，我們需要對應到資料庫裡的中文
+        rate = req["queryResult"]["parameters"]["rate"]
+        
+        # 為了保證查詢成功，可以做一個簡單的轉換（如果你的參數是英文縮寫的話）
+        rate_map = {
+            "G": "普遍級",
+            "P": "保護級",
+            "F2": "輔12級",
+            "F5": "輔15級",
+            "R": "限制級"
+        }
+        # 如果傳進來的是 G，就轉換成 普遍級；如果已經是中文就維持原樣
+        search_rate = rate_map.get(rate, rate)
 
-    return make_response(jsonify({"fulfillmentText": info}))
+        # 4. 準備回應的開頭（作業要求顯示姓名）
+        info = f"我是王冠元設計的電影聊天機器人。您查詢的分級是：{search_rate}。\n\n"
+        
+        # 5. 連接 Firestore 查詢
+        db = firestore.client()
+        collection_ref = db.collection("本週新片含分級")
+        
+        # 查詢條件：rate 欄位等於使用者選擇的分級
+        docs = collection_ref.where("rate", "==", search_rate).get()
+        
+        movie_titles = []
+        for doc in docs:
+            movie_data = doc.to_dict()
+            movie_titles.append(movie_data.get("title"))
+        
+        # 6. 組合最終訊息
+        if movie_titles:
+            info += "本週上映的相關電影有：\n" + "、".join(movie_titles)
+        else:
+            info += f"抱歉，目前本週新片中沒有找到 {search_rate} 的電影。"
+
+        # 7. 回傳給 Dialogflow
+        return make_response(jsonify({"fulfillmentText": info}))
+
+    return make_response(jsonify({"fulfillmentText": "動作未定義"}))
 
 
 @app.route("/rate")
