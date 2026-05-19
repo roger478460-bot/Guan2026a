@@ -313,7 +313,11 @@ def webhook():
         movie_titles = []
         for doc in docs:
             movie_data = doc.to_dict()
-            movie_titles.append(movie_data.get("title"))
+            title = movie_data.get("title")
+            link = movie_data.get("hyperlink")
+            
+            # 把名稱和網址接在一起，用換行 (\n) 隔開比較美觀
+            movie_titles.append(f"🎬 {title}\n連結：{link}")
         
         # 6. 組合最終訊息
         if movie_titles:
