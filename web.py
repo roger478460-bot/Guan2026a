@@ -39,12 +39,12 @@ def index():
     link += "<a href=/read4>老師查詢</a><hr>"
     link += "<a href=/sp1>爬蟲課程</a><hr>"
     link += "<a href=/movie>即將上映的電影</a><hr>"
-    link += "<br><a href=/read>讀取Firestore資料(根據lab遞減排序,取前4)</a><br>"
-    link += "<br><a href=/movie2>讀取近期上映的電影，寫入Firestore</a><br>"
-    link += "<br><a href=/movie3>查詢電影</a><br>"
-    link += "<br><a href=/road>路口事故統計</a><br>"
+    link += "<a href=/read>讀取Firestore資料(根據lab遞減排序,取前4)</a><hr>"
+    link += "<a href=/movie2>讀取近期上映的電影，寫入Firestore</a><hr>"
+    link += "<a href=/movie3>查詢電影</a><hr>"
+    link += "<a href=/road>路口事故統計</a><hr>"
     link += "<a href=/weather?city=臺中市>天氣預報</a><hr>"
-    link += "<br><a href=/rate>本週新片進DB</a><br>"
+    link += "<a href=/rate>本週新片進DB</a><hr>"
     link += "<a href=/demo>Demo 聊天機器人</a><hr>"
     return link
 
