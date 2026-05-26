@@ -367,7 +367,7 @@ def webhook():
 
         # 7. 回傳給 Dialogflow
         return make_response(jsonify({"fulfillmentText": info}))
-    elif (action == "input.unknown"):
+        elif (action == "input.unknown"):
         #info =  req["queryResult"]["queryText"]
 
         # 2. 建立設定物件，設定你希望限制的最大 Token 數（例如 500）
