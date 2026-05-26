@@ -321,13 +321,15 @@ def webhook():
     # 1. 取得 Dialogflow 傳來的 JSON 資料
     req = request.get_json(force=True)
     
-    # 2. 取得 Intent 的 Action 名稱
+    # 2. 取得 Intent 的 Action 名稱 (確保與 Dialogflow 設定一致)
     action = req["queryResult"]["action"]
     
     if action == "rateChoice":
         # 3. 取得 Dialogflow 解析出的參數 (電影分級)
+        # 注意：如果 Dialogflow 傳來的是 "G", "P", "F2" 等，我們需要對應到資料庫裡的中文
         rate = req["queryResult"]["parameters"]["rate"]
         
+        # 為了保證查詢成功，可以做一個簡單的轉換（如果你的參數是英文縮寫的話）
         rate_map = {
             "G": "普遍級",
             "P": "保護級",
@@ -335,15 +337,17 @@ def webhook():
             "F5": "輔15級",
             "R": "限制級"
         }
+        # 如果傳進來的是 G，就轉換成 普遍級；如果已經是中文就維持原樣
         search_rate = rate_map.get(rate, rate)
 
-        # 4. 準備回應的開頭
+        # 4. 準備回應的開頭（作業要求顯示姓名）
         info = f"我是王冠元設計的電影聊天機器人。您查詢的分級是：{search_rate}。\n\n"
         
         # 5. 連接 Firestore 查詢
         db = firestore.client()
         collection_ref = db.collection("本週新片含分級")
         
+        # 查詢條件：rate 欄位等於使用者選擇的分級
         docs = collection_ref.where("rate", "==", search_rate).get()
         
         movie_titles = []
@@ -351,6 +355,8 @@ def webhook():
             movie_data = doc.to_dict()
             title = movie_data.get("title")
             link = movie_data.get("hyperlink")
+            
+            # 把名稱和網址接在一起，用換行 (\n) 隔開比較美觀
             movie_titles.append(f"🎬 {title}\n連結：{link}")
         
         # 6. 組合最終訊息
@@ -361,28 +367,28 @@ def webhook():
 
         # 7. 回傳給 Dialogflow
         return make_response(jsonify({"fulfillmentText": info}))
+        elif (action == "input.unknown"):
+        #info =  req["queryResult"]["queryText"]
 
-    #  修正縮排：elif 必須跟上面的 if 對齊！
-    elif action == "input.unknown":
+        # 2. 建立設定物件，設定你希望限制的最大 Token 數（例如 500）
         ai_config = types.GenerateContentConfig(
-            max_output_tokens=500
+            max_output_tokens = 500
         )
 
-        try:
-            #  修正模型名稱：改為正確可用的 gemini-2.5-flash
-            response = client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=req["queryResult"]["queryText"],
-                config=ai_config,  
-            )
-            ai_reply = response.text
-        except Exception as e:
-            ai_reply = f"Gemini 呼叫失敗，錯誤原因: {str(e)}"
+
+        # 每次使用者拜訪該路徑時，直接使用全域的 client 呼叫模型
+        response = client.models.generate_content(
+            model='gemini-3.5-flash',
+            contents=req["queryResult"]["queryText"],
+            config=ai_config,  
+        )
         
-        #  修正回傳格式：必須打包成符合 Dialogflow 規範的 JSON 格式
-        return make_response(jsonify({"fulfillmentText": ai_reply}))
+        # 回傳生成的文字
+        return response.text
+
 
     return make_response(jsonify({"fulfillmentText": "動作未定義"}))
+
 
 @app.route("/rate")
 def rate():
