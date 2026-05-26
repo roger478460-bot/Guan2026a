@@ -27,9 +27,7 @@ import random
 
 app = Flask(__name__)
 
-# 自動判斷：優先讀取雲端環境變數，讀不到就用後面那串本地金鑰
-gemini_key = os.getenv('GEMINI_API_KEY')
-client = genai.Client(api_key=gemini_key)
+client = genai.Client()
 
 
 @app.route("/")
@@ -79,7 +77,7 @@ def read():
 def AI():
     # 每次使用者拜訪該路徑時，直接使用全域的 client 呼叫模型
     response = client.models.generate_content(
-        model='gemini-2.5-flash',
+        model='gemini-3.5-flash',
         contents='我想查詢靜宜大學資管系的評價？',
     )
     
