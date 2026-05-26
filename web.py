@@ -143,6 +143,10 @@ def movie2():
 def demo():
     return render_template("demo.html")
 
+@app.route("/messger")
+def messger():
+    return render_template("messger.html")
+
 
 @app.route("/movie3", methods=["GET", "POST"])
 def movie3():
