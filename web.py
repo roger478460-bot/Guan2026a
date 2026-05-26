@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+from google import genai
 
 from flask import Flask, render_template, request,make_response, jsonify
 import os
@@ -23,7 +24,9 @@ firebase_admin.initialize_app(cred)
 from flask import Flask,render_template,request
 from datetime import datetime
 import random
+
 app = Flask(__name__)
+client = genai.Client()
 
 
 @app.route("/")
@@ -68,6 +71,7 @@ def read():
 
     Temp += "<a href=/>回到網站首頁</a>"
     return Temp
+
 
 @app.route("/movie2")
 def movie2():
