@@ -72,6 +72,16 @@ def read():
     Temp += "<a href=/>回到網站首頁</a>"
     return Temp
 
+@app.route("/AI")
+def AI():
+    # 每次使用者拜訪該路徑時，直接使用全域的 client 呼叫模型
+    response = client.models.generate_content(
+        model='gemini-3.5-flash',
+        contents='我想查詢靜宜大學資管系的評價？',
+    )
+    
+    # 回傳生成的文字
+    return response.text
 
 @app.route("/movie2")
 def movie2():
