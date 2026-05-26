@@ -361,6 +361,9 @@ def webhook():
 
         # 7. 回傳給 Dialogflow
         return make_response(jsonify({"fulfillmentText": info}))
+        elif (action == "input.unknown"):
+        info =  req["queryResult"]["queryText"]
+
 
     return make_response(jsonify({"fulfillmentText": "動作未定義"}))
 
