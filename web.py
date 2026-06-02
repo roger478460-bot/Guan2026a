@@ -322,13 +322,15 @@ def webhook():
     # 1. 取得 Dialogflow 傳來的 JSON 資料
     req = request.get_json(force=True)
     
-    # 2. 取得 Intent 的 Action 名稱
-    action = req.get("queryResult", {}).get("action", "")
+    # 2. 取得 Intent 的 Action 名稱 (確保與 Dialogflow 設定一致)
+    action = req["queryResult"]["action"]
     
-    # 情況 A：使用者選擇電影分級
     if action == "rateChoice":
+        # 3. 取得 Dialogflow 解析出的參數 (電影分級)
+        # 注意：如果 Dialogflow 傳來的是 "G", "P", "F2" 等，我們需要對應到資料庫裡的中文
         rate = req["queryResult"]["parameters"]["rate"]
         
+        # 為了保證查詢成功，可以做一個簡單的轉換（如果你的參數是英文縮寫的話）
         rate_map = {
             "G": "普遍級",
             "P": "保護級",
@@ -336,14 +338,17 @@ def webhook():
             "F5": "輔15級",
             "R": "限制級"
         }
+        # 如果傳進來的是 G，就轉換成 普遍級；如果已經是中文就維持原樣
         search_rate = rate_map.get(rate, rate)
 
+        # 4. 準備回應的開頭（作業要求顯示姓名）
         info = f"我是王冠元設計的電影聊天機器人。您查詢的分級是：{search_rate}。\n\n"
         
         # 5. 連接 Firestore 查詢
         db = firestore.client()
         collection_ref = db.collection("本週新片含分級")
         
+        # 查詢條件：rate 欄位等於使用者選擇的分級
         docs = collection_ref.where("rate", "==", search_rate).get()
         
         movie_titles = []
@@ -351,31 +356,33 @@ def webhook():
             movie_data = doc.to_dict()
             title = movie_data.get("title")
             link = movie_data.get("hyperlink")
+            
+            # 把名稱和網址接在一起，用換行 (\n) 隔開比較美觀
             movie_titles.append(f"🎬 {title}\n連結：{link}")
         
-        # 6. 組合最終訊息（改成用兩個換行串接，排版更漂亮）
+        # 6. 組合最終訊息
         if movie_titles:
-            info += "本週上映的相關電影有：\n\n" + "\n\n".join(movie_titles)
+            info += "本週上映的相關電影有：\n" + "、".join(movie_titles)
         else:
             info += f"抱歉，目前本週新片中沒有找到 {search_rate} 的電影。"
 
-        # ✨ 記得回傳
+        # 7. 回傳給 Dialogflow
         return make_response(jsonify({"fulfillmentText": info}))
-
-    # 情況 B：Dialogflow 聽不懂，交給 Gemini 處理
-    elif action == "input.unknown":
+    elif (action == "input.unknown"):
         instruction_text = (
             "你是一個熱心且知識豐富的專業智慧助理。"
             "對於使用者的提問，請回覆重點的關鍵字，不要重述問題。"         
         )
+
 
         ai_config = types.GenerateContentConfig(
             max_output_tokens=500, 
             system_instruction=instruction_text
         )
 
+
         response = client.models.generate_content(
-            model='gemini-2.5-flash', # 註：2026年標準推薦使用 gemini-2.5-flash
+            model='gemini-3.5-flash', 
             contents=req["queryResult"]["queryText"],
             config=ai_config,
         )
@@ -385,11 +392,11 @@ def webhook():
         else:
             info = "抱歉，我現在無法生成回應，請稍後再試。"
 
-        # ✨【關鍵修正】這裡一定要 return，否則會走到最下面變成動作未定義！
-        return make_response(jsonify({"fulfillmentText": info}))
 
-    # 情況 C：收到了其他沒有寫在 if/elif 裡面的 Action
-    return make_response(jsonify({"fulfillmentText": f"動作未定義 (收到的是: {action})"}))
+
+
+    return make_response(jsonify({"fulfillmentText": "動作未定義"}))
+
 
 @app.route("/rate")
 def rate():
