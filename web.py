@@ -368,18 +368,18 @@ def webhook():
 
         # 7. 回傳給 Dialogflow
         return make_response(jsonify({"fulfillmentText": info}))
-    elif (action == "input.unknown"):
+        
+    # 修正：如果 action 是 input.unknown，或者是空字串、或是任何沒對接到的動作
+    elif action == "input.unknown" or action == "":
         instruction_text = (
             "你是一個熱心且知識豐富的專業智慧助理。"
             "對於使用者的提問，請回覆重點的關鍵字，不要重述問題。"         
         )
 
-
         ai_config = types.GenerateContentConfig(
             max_output_tokens=500, 
             system_instruction=instruction_text
         )
-
 
         response = client.models.generate_content(
             model='gemini-3.1-flash-lite', 
@@ -392,10 +392,11 @@ def webhook():
         else:
             info = "抱歉，我現在無法生成回應，請稍後再試。"
 
+        # ✨【超級重點】注意這個 return 的縮排！必須在 elif 裡面！
+        return make_response(jsonify({"fulfillmentText": info}))
 
-
-
-    return make_response(jsonify({"fulfillmentText": "動作未定義"}))
+    # 只有上面所有條件都不符合（例如收到了非空值的其他自訂 action），才會跑到這裡
+    return make_response(jsonify({"fulfillmentText": f"動作未定義 (收到的 Action 是: {action})"}))
 
 
 @app.route("/rate")
