@@ -368,7 +368,7 @@ def webhook():
 
         # 7. 回傳給 Dialogflow
         return make_response(jsonify({"fulfillmentText": info}))
-        elif (action == "input.unknown"):
+    elif (action == "input.unknown"):
         instruction_text = (
             "你是一個熱心且知識豐富的專業智慧助理。"
             "對於使用者的提問，請回覆重點的關鍵字，不要重述問題。"         
